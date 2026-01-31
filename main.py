@@ -8,7 +8,7 @@ import json
 import os
 
 # 第一步：先创建 FastAPI 核心实例（所有路由前必须定义，解决 NameError 问题）
-app = FastAPI(title="基金估值盈亏接口（支持搜索）", version="1.0")
+app = FastAPI(title="基金估值盈亏接口（全功能：搜索+添加+删除+盈亏）", version="1.0")
 
 # 跨域配置（必须加，小程序跨域调用必备）
 app.add_middleware(
@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],        # 允许所有请求头
 )
 
-# -------------------------- 【可选修改】初始默认持仓（可留空，后续小程序搜索添加） --------------------------
+# -------------------------- 【可选修改】初始默认持仓（可留空，后续小程序添加/删除） --------------------------
 # 格式：code(6位数字)、name(基金名称)、cost(持仓成本)、share(持有份额)，留空则写 DEFAULT_HOLD_FUNDS = []
 DEFAULT_HOLD_FUNDS = [
     {"code": "000311", "name": "景顺长城沪深300指数A", "cost": 1.2345, "share": 1000.00},
@@ -200,7 +200,38 @@ async def add_fund(fund: dict):
     with open(FUND_DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(HOLD_FUNDS, f, ensure_ascii=False, indent=2)
     print(f"✅ 新增持仓：{fund['name']}({fund['code']})")
-    return {"code": 200, "msg": "添加持仓成功", "data": HOLD_FUNDS}
+    return {
+        "code": 200,
+        "msg": "添加持仓成功",
+        "data": HOLD_FUNDS
+    }
+
+# -------------------------- 接口4：删除持仓基金（小程序删除功能依赖，核心新增） --------------------------
+@app.post("/api/fund/delete", summary="删除指定代码的持仓基金，自动更新本地文件")
+async def delete_fund(fund: dict):
+    # 校验必传参数
+    if not fund.get("code"):
+        raise HTTPException(status_code=400, detail="缺失基金代码")
+    fund_code = fund["code"]
+    global HOLD_FUNDS
+    # 检查基金是否在持仓中
+    fund_index = -1
+    for i, f in enumerate(HOLD_FUNDS):
+        if f["code"] == fund_code:
+            fund_index = i
+            break
+    if fund_index == -1:
+        raise HTTPException(status_code=404, detail="该基金未在持仓中，无需删除")
+    # 删除基金并更新本地持久化文件
+    del HOLD_FUNDS[fund_index]
+    with open(FUND_DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(HOLD_FUNDS, f, ensure_ascii=False, indent=2)
+    print(f"✅ 删除持仓基金：{fund_code}")
+    return {
+        "code": 200,
+        "msg": "删除持仓成功",
+        "data": HOLD_FUNDS
+    }
 
 # 本地运行入口（仅本地测试用，Render部署时自动忽略）
 if __name__ == "__main__":
