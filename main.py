@@ -1,4 +1,6 @@
+# 补全所有依赖导入（关键！之前漏了CORSMiddleware）
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware  # 新增这行
 from pydantic import BaseModel
 import requests
 from bs4 import BeautifulSoup
@@ -139,7 +141,7 @@ async def get_fund_profit():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"盈亏计算失败：{str(e)[:30]}")
 
-# 接口2：基金搜索（你之前缺失的接口）
+# 接口2：基金搜索
 @app.get("/api/fund/search")
 async def search_fund(keyword: str):
     if not keyword or len(keyword) < 2:
